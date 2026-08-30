@@ -173,6 +173,13 @@ namespace WhatsAppChecker.SampleConsole
                         }
                         Console.WriteLine();
                     }
+                    catch (WhatsAppNotAuthenticatedException ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($"\n  [!] SESSION UNLINKED: {ex.Message}");
+                        Console.WriteLine("  [⏳] Please scan the QR code above with your WhatsApp app, then retry.\n");
+                        Console.ResetColor();
+                    }
                     catch (Exception ex)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;

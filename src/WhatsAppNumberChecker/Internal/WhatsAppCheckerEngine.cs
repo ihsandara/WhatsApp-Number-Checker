@@ -228,51 +228,55 @@ namespace WhatsAppNumberChecker.Internal
             {
                 try
                 {
-                    // Check if already authenticated (chat list, pane-side, or localStorage session exists)
-                    var isChatListPresent = await _page.EvaluateFunctionAsync<bool>(@"() => {
+                    var authCheck = await _page.EvaluateFunctionAsync<JsonElement>(@"() => {
                         try {
-                            // 1. Navigation / chat list elements
-                            if (document.querySelector('div[id=""pane-side""]') || 
+                            const hasQr = !!document.querySelector('div[data-ref]') || !!document.querySelector('canvas');
+                            const qrData = document.querySelector('div[data-ref]')?.getAttribute('data-ref') || null;
+
+                            const hasChatUI = !!(
+                                document.querySelector('div[id=""pane-side""]') || 
                                 document.querySelector('div[data-testid=""chat-list""]') || 
                                 document.querySelector('div[role=""navigation""]') ||
                                 document.querySelector('div[aria-label=""Chat list""]') ||
                                 document.querySelector('div[data-testid=""intro-title""]') ||
-                                document.querySelector('header')) {
-                                return true;
-                            }
+                                document.querySelector('div[id=""main""]') ||
+                                document.querySelector('header')
+                            );
 
-                            // 2. localStorage paired state
-                            const wid = localStorage.getItem('last-wid') || localStorage.getItem('last-wid-md') || localStorage.getItem('WAToken1');
-                            if (wid && !document.querySelector('div[data-ref]') && !document.querySelector('canvas')) {
-                                return true;
-                            }
+                            const isSyncing = !!document.querySelector('progress') && !hasQr;
 
-                            // 3. Progress / sync screen after QR scan
-                            if (document.querySelector('progress') && !document.querySelector('div[data-ref]')) {
-                                return true;
+                            if (hasChatUI && !hasQr) {
+                                return { status: 'authenticated' };
+                            }
+                            if (hasQr) {
+                                return { status: 'qr_needed', qr: qrData };
+                            }
+                            if (isSyncing) {
+                                return { status: 'syncing' };
                             }
                         } catch (e) {}
-                        return false;
+                        return { status: 'waiting' };
                     }").ConfigureAwait(false);
 
-                    if (isChatListPresent)
+                    var status = authCheck.TryGetProperty("status", out var s) ? s.GetString() : "waiting";
+
+                    if (status == "authenticated")
                     {
                         _logger.LogInformation("[✓] Phone scan verified! Synchronizing WhatsApp Web session...");
                         _authTcs?.TrySetResult(true);
                         break;
                     }
 
-                    // Check for QR code in DOM
-                    var qrDataRef = await _page.EvaluateFunctionAsync<string?>(
-                        "() => document.querySelector('div[data-ref]')?.getAttribute('data-ref')"
-                    ).ConfigureAwait(false);
-
-                    if (!string.IsNullOrEmpty(qrDataRef) && qrDataRef != lastQr)
+                    if (status == "qr_needed")
                     {
-                        lastQr = qrDataRef;
                         State = WhatsAppConnectionState.ScanQrCode;
-                        _logger.LogInformation("New WhatsApp QR code generated. Awaiting user scan...");
-                        QrCodeReceived?.Invoke(this, qrDataRef!);
+                        var qr = authCheck.TryGetProperty("qr", out var q) ? q.GetString() : null;
+                        if (!string.IsNullOrEmpty(qr) && qr != lastQr)
+                        {
+                            lastQr = qr;
+                            _logger.LogInformation("New WhatsApp QR code generated. Awaiting user scan...");
+                            QrCodeReceived?.Invoke(this, qr!);
+                        }
                     }
 
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -515,7 +519,16 @@ namespace WhatsAppNumberChecker.Internal
                     var nativeCheckScript = @"
                         async (phone) => {
                             for (let i = 0; i < 35; i++) {
-                                // 1. Check for active chat conversation (ACTIVE ACCOUNT)
+                                // 1. Check if user got logged out or unlinked (QR code screen)
+                                const hasQr = !!document.querySelector('div[data-ref]') || !!document.querySelector('canvas');
+                                const qrData = document.querySelector('div[data-ref]')?.getAttribute('data-ref') || null;
+                                const bodyLower = (document.body ? document.body.innerText : '').toLowerCase();
+
+                                if (hasQr || bodyLower.includes('to use whatsapp on your computer') || bodyLower.includes('scan this qr code') || bodyLower.includes('you have been logged out')) {
+                                    return { unauthenticated: true, qr: qrData, exists: false, jid: null, debug: 'Session unlinked / QR code screen detected' };
+                                }
+
+                                // 2. Check for active chat conversation (ACTIVE ACCOUNT)
                                 const chatBox = document.querySelector('div[id=""main""]') ||
                                                 document.querySelector('footer div[contenteditable=""true""]') ||
                                                 document.querySelector('footer div[role=""textbox""]') ||
@@ -527,7 +540,7 @@ namespace WhatsAppNumberChecker.Internal
                                     return { exists: true, jid: phone + '@c.us', debug: 'Found active chat conversation box' };
                                 }
 
-                                // 2. Check strictly for invalid phone number dialog popup (INACTIVE ACCOUNT)
+                                // 3. Check strictly for invalid phone number dialog popup (INACTIVE ACCOUNT)
                                 const modal = document.querySelector('div[data-animate-modal-popup=""true""]') ||
                                               document.querySelector('div[data-testid=""popup-contents""]');
 
@@ -552,8 +565,7 @@ namespace WhatsAppNumberChecker.Internal
                                     }
                                 }
 
-                                const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
-                                if (bodyText.includes('phone number shared via url is invalid') || bodyText.includes('phone number is invalid')) {
+                                if (bodyLower.includes('phone number shared via url is invalid') || bodyLower.includes('phone number is invalid')) {
                                     return { exists: false, jid: null, debug: 'Detected invalid phone text in page body' };
                                 }
 
@@ -571,6 +583,18 @@ namespace WhatsAppNumberChecker.Internal
                     ";
 
                     var nativeResult = await _page.EvaluateFunctionAsync<JsonElement>(nativeCheckScript, normalized).ConfigureAwait(false);
+
+                    if (nativeResult.TryGetProperty("unauthenticated", out var unauthProp) && unauthProp.GetBoolean())
+                    {
+                        State = WhatsAppConnectionState.ScanQrCode;
+                        var qrCode = nativeResult.TryGetProperty("qr", out var q) && q.ValueKind == JsonValueKind.String ? q.GetString() : null;
+                        if (!string.IsNullOrEmpty(qrCode))
+                        {
+                            QrCodeReceived?.Invoke(this, qrCode!);
+                        }
+                        throw new WhatsAppNotAuthenticatedException("WhatsApp session was disconnected or unlinked. Please scan the QR code to re-authenticate.");
+                    }
+
                     if (nativeResult.TryGetProperty("exists", out var nExists))
                     {
                         exists = nExists.GetBoolean();
