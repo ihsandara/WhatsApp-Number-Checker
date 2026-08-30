@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/WhatsAppChecker.SampleConsole/WhatsAppChecker.SampleConsole.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/WhatsAppNumberChecker/WhatsAppNumberChecker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WhatsAppNumberChecker.Tests/WhatsAppNumberChecker.Tests.csproj" />
+  </Folder>
+</Solution>

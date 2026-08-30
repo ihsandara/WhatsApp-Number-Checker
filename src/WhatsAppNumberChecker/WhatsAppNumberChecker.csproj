@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>10.0</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>WhatsAppNumberChecker</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Ihsan Abdulla</Authors>
+    <Company>WhatsAppNumberChecker</Company>
+    <Product>WhatsAppNumberChecker</Product>
+    <Title>WhatsAppNumberChecker</Title>
+    <Description>High-performance, in-process .NET Standard 2.0 library for verifying WhatsApp phone number registration status. Features persistent session management, automatic browser lifecycle, anti-ban rate limiting, and dependency injection support.</Description>
+    <PackageTags>whatsapp;number-checker;phone-validation;phone-lookup;anti-ban;dotnet;csharp;whatsapp-web</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/ihsandara/WhatsApp-Number-Checker</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/ihsandara/WhatsApp-Number-Checker</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
+    <PackageReference Include="PuppeteerSharp" Version="25.8.0" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="10.0.7" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>

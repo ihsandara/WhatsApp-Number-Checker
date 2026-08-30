@@ -1,0 +1,28 @@
+## Build & Artifacts
+bin/
+obj/
+dist/
+artifacts/
+TestResults/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Session & Authentication Data
+whatsapp_session/
+auth_data/
+auth_info_baileys/
+Docs/
+*.log
+
+## Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+## IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
