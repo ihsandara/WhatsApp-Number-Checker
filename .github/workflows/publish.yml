@@ -31,5 +31,11 @@ jobs:
       - name: Pack NuGet Package
         run: dotnet pack src/WhatsAppNumberChecker/WhatsAppNumberChecker.csproj -c Release -o ./artifacts
 
+      - name: Authenticate with NuGet via Trusted Publishing
+        uses: NuGet/login@v1
+        id: nuget_login
+        with:
+          user: ihsandara
+
       - name: Publish to NuGet
-        run: dotnet nuget push ./artifacts/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ steps.nuget_login.outputs.token }} --source https://api.nuget.org/v3/index.json --skip-duplicate
